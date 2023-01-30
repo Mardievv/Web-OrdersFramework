@@ -11,15 +11,9 @@ import org.testng.asserts.SoftAssert;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
+import java.util.*;
 
-import static com.academy.techcenture.config.ConfigReader.getProperties;
 import static com.academy.techcenture.config.ConfigReader.setProperties;
-import static com.academy.techcenture.utils.Utils.generateRandomNumber;
-import static com.academy.techcenture.utils.Utils.generateStringNumbers;
 
 public class PlaceOrderPage extends BasePage{
 
@@ -83,32 +77,35 @@ public class PlaceOrderPage extends BasePage{
     private WebElement confirmationMsg;
 
 
-    public void placeNewOrder(){
-        fillOutProductInformation();
-        fillOutAddressInformation();
-        fillOutPaymentInformation();
+    public void placeNewOrder(HashMap<String,String> data) {
+        fillOutProductInformation(data);
+        fillOutAddressInformation(data);
+        fillOutPaymentInformation(data);
 
         softAssert.assertTrue(insertBtn.isEnabled() && resetBtn.isEnabled(), "PROCESS OR RESET BUTTON IS NOT ENABLED");
         insertBtn.click();
 
-        softAssert.assertEquals(confirmationMsg.getText().trim(),"New order has been successfully added.", "CONFIRMATION MESSAGE DOES NOT MATCH");
+        softAssert.assertEquals(confirmationMsg.getText().trim(),data.get("SuccessMessage"), "CONFIRMATION MESSAGE DOES NOT MATCH");
+
+        SimpleDateFormat gmDateFormat = new SimpleDateFormat("MM/DD/YYYY");
+        gmDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        String currentDate = gmDateFormat.format(new Date());
+        data.put("Date", currentDate);
+
     }
 
 
     /**
      * This method will fill out Product Information
      */
-    private void fillOutProductInformation(){
+    private void fillOutProductInformation(HashMap<String,String> data){
 
         faker = new Faker(new Locale("en-us"));
         Select selectProduct = new Select(productsDropDown);
-        selectProduct.selectByIndex(generateRandomNumber(0,2));
-        String selectedProductText = selectProduct.getFirstSelectedOption().getText();
-        setProperties("product", selectedProductText);
+        selectProduct.selectByVisibleText(data.get("Product"));
 
-        String quantity = generateRandomNumber(5, 10) + "";
-        setProperties("#", quantity);
-        quantityInput.sendKeys(getProperties("#"));
+        String quantity = data.put("#", (int)Double.parseDouble(data.get("#"))+"");
+        quantityInput.sendKeys(quantity);
 
         DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
         dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -126,31 +123,21 @@ public class PlaceOrderPage extends BasePage{
     /**
      * This method will fill out Address Information
      */
-    private void fillOutAddressInformation(){
+    private void fillOutAddressInformation(HashMap<String,String> data){
 
         String expectedAddressInfo = "Address Information";
         softAssert.assertEquals(addressInfo.getText().trim(), expectedAddressInfo,"ADDRESS INFORMATION DO NOT MATCH");
 
-//      a random fake information
-        String fullName = faker.name().fullName();
-        setProperties("name", fullName);
-        nameInput.sendKeys(getProperties("name"));
+        nameInput.sendKeys(data.get("Name"));
 
-        String street = faker.address().streetAddress();
-        setProperties("street", street);
-        streetInput.sendKeys(getProperties("street"));
+        streetInput.sendKeys(data.get("Street"));
 
-        String city = faker.address().city();
-        setProperties("city",city);
-        cityInput.sendKeys(getProperties("city"));
+        cityInput.sendKeys(data.get("City"));
 
-        String state = faker.address().stateAbbr();
-        setProperties("state",state);
-        stateInput.sendKeys(getProperties("state"));
+        stateInput.sendKeys(data.get("State"));
 
-        String zip = faker.address().zipCodeByState(state);
-        setProperties("zip",zip);
-        zipInput.sendKeys(getProperties("zip"));
+        data.put("Zip", (int)Double.parseDouble(data.get("Zip")) + "");
+        zipInput.sendKeys(data.get("Zip"));
 
     }
 
@@ -158,31 +145,22 @@ public class PlaceOrderPage extends BasePage{
     /**
      * This method will fill out Payment Information
      */
-    private void fillOutPaymentInformation(){
+    private void fillOutPaymentInformation(HashMap<String,String> data) {
 
         String expectedPaymentInformation = "Payment Information";
         softAssert.assertEquals(paymentInfo.getText().trim(), expectedPaymentInformation,"PAYMENT INFORMATION DO NOT MATCH");
 
-        String cardNumberId = "ctl00_MainContent_fmwOrder_cardList_"+generateRandomNumber(0,2)+"";
-        WebElement card = driver.findElement(By.id(cardNumberId));
+        WebElement card = driver.findElement(By.xpath("//input[@value='"+data.get("Card")+"']"));
         card.click();
-        String selectedCard = card.getAttribute("value");
-        setProperties("card", selectedCard);
 
-        String randomCardNumber = generateStringNumbers(0, 9, 16);
-        setProperties("card number", randomCardNumber);
-        cardNumberInput.sendKeys(getProperties("card number"));
+        cardNumberInput.sendKeys(data.get("Card Number"));
 
-        int expMonthNum = generateRandomNumber(1,12);
-        String expMont = expMonthNum <= 9 ? "0" + expMonthNum : expMonthNum + "";
-        int expYear = generateRandomNumber(23,29);
-        setProperties("exp", expMont + "/" + expYear);
-        expDate.sendKeys(getProperties("exp"));
+        expDate.sendKeys(data.get("Exp"));
 
     }
 
 
-    public void verifyNewOrder(){
+    public void verifyNewOrder(HashMap<String,String> data){
 
         //   Name,      Product,   #,    Data,       Street,          City,      State,   Zip,    Card,    Card Number,    Exp
         List<WebElement> columns = driver.findElements(By.xpath("//table[@id='ctl00_MainContent_orderGrid']/tbody/tr[1]/th"));
@@ -190,13 +168,11 @@ public class PlaceOrderPage extends BasePage{
         List<WebElement> firstRow = driver.findElements(By.xpath("//table[@id='ctl00_MainContent_orderGrid']/tbody/tr[2]/td"));
 
         for (int i = 1; i < columns.size()-1; i++) {
-            String columnName = columns.get(i).getText().trim().toLowerCase();
-            String expectedColumnData = getProperties(columnName);
+            String columnName = columns.get(i).getText().trim();
+            String expectedColumnData = data.get(columnName);
             String actualColumnData = firstRow.get(i).getText();
-            softAssert.assertEquals(actualColumnData, expectedColumnData,"NAMES NOT MATCHING");
+            softAssert.assertEquals(actualColumnData, expectedColumnData,columnName+" NOT MATCHING");
         }
-
     }
-
 
 }
