@@ -9,7 +9,6 @@ import org.testng.asserts.SoftAssert;
 
 import java.util.List;
 
-import static org.testng.Assert.*;
 
 public class OrdersPage extends BasePage{
 
